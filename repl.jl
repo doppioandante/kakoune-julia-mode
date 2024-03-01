@@ -14,7 +14,7 @@ function get_contextual_completion(mod, to_complete)
     completions_res = REPL.REPLCompletions.completions(String(to_complete), length(to_complete), mod)
     completions = completions_res[1]
     completion_range = completions_res[2]
-    completion_success = completions_res[3] && !isempty(completion_range) && !isempty(completions)
+    completion_success = completions_res[3] && !isempty(completions)
 
     if completion_success
         return completions, completion_range

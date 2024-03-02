@@ -6,6 +6,8 @@ provide-module julia-mode %[
 declare-option -hidden str julia_mode_dir "/tmp/julia_mode_kakoune/%val{session}"
 # julia mode source code (Julia scripts)
 declare-option -hidden str julia_mode_eval_output ''
+# for debugging
+declare-option -hidden str julia_mode_last_completion_input ''
 
 declare-option completions julia_mode_completions
 
@@ -13,17 +15,18 @@ define-command -docstring 'julia-mode-start: Create a background julia REPL for 
     julia-mode-start %{ 
     nop %sh{
         dir=$kak_opt_julia_mode_dir
+        log_file=${dir}/log.txt
         if [ ! -d ${dir} ]; then
             mkdir -p ${dir}
             mkfifo ${dir}/in ${dir}/out
             ( julia ${kak_opt_julia_mode_source%/*}/repl.jl ${dir}/in ${dir}/out
-            )>/dev/null 2>&1 </dev/null &
+            )>${log_file} 2>&1 </dev/null &
         fi
     }
 }
 
 define-command julia-mode-enable-autocomplete -docstring "Add julia completion candidates to the completer" %{
-    set-option window completers option=julia_mode_completions %opt{completers}
+    set-option -add window completers option=julia_mode_completions
 
     hook window InsertIdle .* %{ try %{
         evaluate-commands -draft %{
@@ -34,6 +37,8 @@ define-command julia-mode-enable-autocomplete -docstring "Add julia completion c
 }
 
 define-command julia-mode-complete -docstring "Complete the current selection through the julia REPL" %{
+    set-option window julia_mode_last_completion_input %val{selection}
+
     nop %sh{
         (
             if [ -d ${kak_opt_julia_mode_dir} ]; then

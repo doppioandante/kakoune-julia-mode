@@ -1,5 +1,10 @@
 import REPL
 
+function write_log(xs...)
+    println("LOG: ", xs...)
+    flush(stdout)
+end
+
 function cmd_eval(mod, code)
    try 
        return string(Base.eval(mod, Meta.parse(code)))
@@ -52,10 +57,15 @@ function completion_to_menu_item(repl_completion; mod_completion :: Bool, to_com
 end
 
 function cmd_complete(mod, to_complete)
+    if isempty(to_complete)
+        return nothing
+    end
+
     completions, completion_range = get_contextual_completion(mod, to_complete)
 
     # flag to understand when "Module." has been typed; kakoune needs "Module." to prefix all the generated completions
     mod_completion = isempty(completion_range) && to_complete[end] == '.'
+
 
     kakoune_completions = String[]
     for c in completions
@@ -70,6 +80,8 @@ function cmd_complete(mod, to_complete)
         completion_range = 1:length(to_complete)
     end
 
+    write_log("Found ", length(completions), " completions at ", completion_range)
+
     if !isempty(kakoune_completions)
        to_output = "$(completion_range.start):$(length(completion_range))"
        to_output *= " "
@@ -83,10 +95,12 @@ end
 function main()
     repl_module = Module()
     is_running = true
+    
     while is_running
         input_fifo_path = ARGS[1]
         output_fifo_path = ARGS[2]
 
+        write_log("waiting for input")
         open(input_fifo_path, "r") do input_fifo
             command = read(input_fifo, String)
             # input command format:
@@ -108,14 +122,21 @@ function main()
 
             to_output = nothing
             if cmd_name == "eval"
-                to_output = cmd_eval(repl_module, rstrip(command[cmd_end+1:end]))
+                expr = rstrip(command[cmd_end+1:end])
+                write_log("evaluating expression ", expr)
+                to_output = cmd_eval(repl_module, expr)
             elseif cmd_name == "complete"
-                to_output = cmd_complete(repl_module, rstrip(command[cmd_end+1:end]))
+                to_complete = rstrip(command[cmd_end+1:end]) 
+                write_log("completing ", to_complete) 
+                to_output = cmd_complete(repl_module, to_complete)
             elseif cmd_name == "reset"
-               repl_module = Module()
+                repl_module = Module()
             elseif cmd_name == "quit"
-               is_running = false
-            end 
+                is_running = false
+            else
+                write_log("unrecognized command")
+            end
+
 
             #if to_output != nothing
             #    open(output_fifo_path, "w") do fifo
@@ -126,7 +147,7 @@ function main()
                 if to_output !== nothing
                     print(fifo, to_output)
                 else
-                    println()
+                    println(fifo)
                 end
             end
 

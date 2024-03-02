@@ -76,5 +76,8 @@ end
         cmd_eval(mod, "module MyModule; field = 1; end")
         kak_input = cmd_complete(mod, "MyModule.")
         @test kak_input == "1:9 \"MyModule.eval||eval   {MenuInfo}eval\" \"MyModule.field||field   {MenuInfo}field\" \"MyModule.include||include   {MenuInfo}include\""
+
+        cmd_complete(mod, "")
+        @test true
     end
 end

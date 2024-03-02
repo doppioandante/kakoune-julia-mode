@@ -37,6 +37,7 @@ define-command julia-mode-complete -docstring "Complete the current selection th
     nop %sh{
         (
             if [ -d ${kak_opt_julia_mode_dir} ]; then
+                printf %s\\n "debug hey!"
                 (printf 'complete %s' "$kak_selection" > $kak_opt_julia_mode_dir/in) > /dev/null 2>&1 </dev/null
                 completion_result=$(cat $kak_opt_julia_mode_dir/out)
                 if [ ! -z "${completion_result}" ]; then

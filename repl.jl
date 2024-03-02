@@ -9,6 +9,9 @@ function cmd_eval(mod, code)
    return nothing
 end
 
+function fixup_module_completions(completions, completion_range, to_complete)
+end
+
 function get_contextual_completion(mod, to_complete)
     expr = "REPL.REPLCompletions.completions(\"$(escape_string(to_complete))\", $(length(to_complete)))"
     completions_res = REPL.REPLCompletions.completions(String(to_complete), length(to_complete), mod)
@@ -23,7 +26,7 @@ function get_contextual_completion(mod, to_complete)
     end
 end
 
-function completion_to_menu_item(repl_completion)
+function completion_to_menu_item(repl_completion; mod_completion :: Bool, to_complete :: AbstractString)
     completion_cmd = ""
     completion_handled = true
     if repl_completion isa REPL.REPLCompletions.BslashCompletion
@@ -33,6 +36,10 @@ function completion_to_menu_item(repl_completion)
         completion_menu = "$(completion_text)   {MenuInfo}$(completion_info)"
     elseif repl_completion isa REPL.REPLCompletions.ModuleCompletion
         completion_text = REPL.REPLCompletions.completion_text(repl_completion)
+        if mod_completion
+            # append "<ModuleName>." before the completion
+            completion_text = to_complete * completion_text 
+        end
         completion_menu = "$(repl_completion.mod)   {MenuInfo}$(repl_completion.mod)"
     else
         completion_handled = false
@@ -47,13 +54,20 @@ end
 function cmd_complete(mod, to_complete)
     completions, completion_range = get_contextual_completion(mod, to_complete)
 
+    # flag to understand when "Module." has been typed; kakoune needs "Module." to prefix all the generated completions
+    mod_completion = isempty(completion_range) && to_complete[end] == '.'
+
     kakoune_completions = String[]
     for c in completions
-       menu_item = completion_to_menu_item(c)
+       menu_item = completion_to_menu_item(c; mod_completion=mod_completion, to_complete=to_complete)
 
        if menu_item != nothing
            push!(kakoune_completions, menu_item)
        end
+    end
+
+    if mod_completion
+        completion_range = 1:length(to_complete)
     end
 
     if !isempty(kakoune_completions)
@@ -103,11 +117,19 @@ function main()
                is_running = false
             end 
 
-            if to_output != nothing
-                open(output_fifo_path, "w") do fifo
+            #if to_output != nothing
+            #    open(output_fifo_path, "w") do fifo
+            #        print(fifo, to_output)
+            #    end
+            #end
+            open(output_fifo_path, "w") do fifo
+                if to_output !== nothing
                     print(fifo, to_output)
+                else
+                    println()
                 end
             end
+
         end
     end
 end
